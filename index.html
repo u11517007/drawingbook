@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>奇妙的部落：守護森林的小精靈 (mnanak na qalang)</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;900&family=Zen+Maru+Gothic:wght@500;700;900&display=swap');
+
+    :root {
+      --primary-red: #9e2a2b;
+      --tribal-gold: #e9c46a;
+      --forest-dark: #111d13;
+      --forest-mid: #283618;
+      --wood-light: #f4a261;
+      --wood-dark: #606c38;
+      --card-bg: rgba(20, 28, 22, 0.85);
+    }
+
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background: radial-gradient(circle at center, #1b2e1e 0%, #080d09 100%);
+      color: #fefae0;
+      font-family: 'Zen Maru Gothic', 'Noto Serif TC', serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow-x: hidden;
+      margin: 0;
+    }
+
+    /* 背景粒子特效 */
+    .bg-particles {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      background-image: 
+        radial-gradient(2px 2px at 20px 30px, #e9c46a, rgba(0,0,0,0)),
+        radial-gradient(2px 2px at 40px 70px, #ffffff, rgba(0,0,0,0)),
+        radial-gradient(1.5px 1.5px at 90px 40px, #e76f51, rgba(0,0,0,0));
+      background-repeat: repeat;
+      background-size: 200px 200px;
+      animation: particleMove 20s linear infinite;
+      opacity: 0.4;
+    }
+
+    @keyframes particleMove {
+      from { background-position: 0 0; }
+      to { background-position: 500px 1000px; }
+    }
+
+    /* 頂部標題列 */
+    header {
+      position: relative;
+      z-index: 10;
+      background: rgba(10, 15, 11, 0.9);
+      border-bottom: 3px solid var(--tribal-gold);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+      padding: 12px 20px;
+    }
+
+    .title-text {
+      font-weight: 900;
+      color: var(--tribal-gold);
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      font-size: 1.5rem;
+      letter-spacing: 2px;
+    }
+
+    .subtitle-text {
+      font-size: 0.85rem;
+      color: #a3b18a;
+    }
+
+    /* 精靈懸浮按鈕 */
+    .spirit-avatar {
+      width: 45px;
+      height: 45px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 8px rgba(233, 196, 106, 0.8));
+      animation: spiritFloat 3s ease-in-out infinite alternate;
+      cursor: pointer;
+    }
+
+    @keyframes spiritFloat {
+      0% { transform: translateY(0px) rotate(-3deg); }
+      100% { transform: translateY(-8px) rotate(3deg); }
+    }
+
+    /* 繪本主體容器 */
+    .book-container {
+      position: relative;
+      z-index: 5;
+      max-width: 1000px;
+      margin: auto;
+      padding: 15px;
+      width: 100%;
+    }
+
+    .book-frame {
+      background: var(--card-bg);
+      border: 4px solid var(--tribal-gold);
+      border-radius: 20px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.8), inset 0 0 15px rgba(233, 196, 106, 0.2);
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+      transition: all 0.3s ease;
+    }
+
+    /* 圖片顯示區域 */
+    .img-wrapper {
+      position: relative;
+      width: 100%;
+      height: 0;
+      padding-bottom: 56.25%; /* 16:9 比例 */
+      background-color: #050805;
+      overflow: hidden;
+      border-bottom: 2px solid rgba(233, 196, 106, 0.3);
+    }
+
+    .story-img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transition: opacity 0.5s ease;
+    }
+
+    .page-badge {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: rgba(0, 0, 0, 0.75);
+      border: 1px solid var(--tribal-gold);
+      color: var(--tribal-gold);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      z-index: 2;
+    }
+
+    /* 文字與對話說明區 */
+    .story-text-box {
+      padding: 20px 25px;
+      min-height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      background: linear-gradient(180deg, rgba(20,28,22,0.9) 0%, rgba(10,15,11,0.95) 100%);
+    }
+
+    .story-text {
+      font-size: 1.25rem;
+      line-height: 1.7;
+      color: #fefae0;
+      margin: 0;
+      flex-grow: 1;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    }
+
+    /* 控制控制鈕與圖示 */
+    .icon-btn {
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      transition: transform 0.2s ease, filter 0.2s ease;
+    }
+
+    .icon-btn:hover {
+      transform: scale(1.1);
+      filter: brightness(1.2);
+    }
+
+    .icon-btn:active {
+      transform: scale(0.95);
+    }
+
+    .btn-img {
+      height: 48px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .btn-read-img {
+      height: 52px;
+      filter: drop-shadow(0 0 6px rgba(233, 196, 106, 0.6));
+    }
+
+    /* 底部導覽 controls */
+    .controls-bar {
+      position: relative;
+      z-index: 10;
+      background: rgba(10, 15, 11, 0.9);
+      border-top: 2px solid rgba(233, 196, 106, 0.3);
+      padding: 12px 20px;
+    }
+
+    .music-indicator {
+      font-size: 0.85rem;
+      color: #a3b18a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .music-pulse {
+      width: 8px;
+      height: 8px;
+      background-color: #2a9d8f;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .music-pulse.playing {
+      animation: pulse 1.2s infinite;
+      background-color: var(--tribal-gold);
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(233, 196, 106, 0.7); }
+      70% { transform: scale(1.2); box-shadow: 0 0 0 8px rgba(233, 196, 106, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(233, 196, 106, 0); }
+    }
+
+    /* 音量控制器樣式 */
+    .volume-slider {
+      width: 80px;
+      accent-color: var(--tribal-gold);
+    }
+
+    @media (max-width: 768px) {
+      .title-text { font-size: 1.1rem; }
+      .story-text { font-size: 1.05rem; }
+      .btn-img { height: 38px; }
+      .btn-read-img { height: 42px; }
+      .story-text-box { padding: 15px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-particles"></div>
+
+  <!-- 頂部標題列 -->
+  <header class="d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center gap-3">
+      <img src="assets/graphics/spirit.png" alt="靈魂精靈" class="spirit-avatar" id="spiritIcon" title="點擊聆聽主題曲" onclick="toggleThemeSong()">
+      <div>
+        <div class="title-text">奇妙的部落 mnanak na qalang</div>
+        <div class="subtitle-text">泰雅森林的故事與傳承</div>
+      </div>
+    </div>
+
+    <div class="d-flex align-items-center gap-3">
+      <button class="btn btn-outline-warning btn-sm text-light border-warning" onclick="toggleThemeSong()" id="themeSongBtn">
+        <i class="fa-solid fa-music"></i> 主題曲
+      </button>
+    </div>
+  </header>
+
+  <!-- 繪本主體 -->
+  <main class="book-container">
+    <div class="book-frame">
+      <!-- 畫面顯示區 -->
+      <div class="img-wrapper">
+        <span class="page-badge" id="pageBadge">0 / 19</span>
+        <img id="storyImage" class="story-img" src="assets/graphics/0.jpg" alt="故事繪本畫面">
+      </div>
+
+      <!-- 繪本內文與語音按鈕 -->
+      <div class="story-text-box">
+        <p class="story-text" id="storyText">載入中...</p>
+
+        <button class="icon-btn" onclick="playSpeech()" title="朗讀內文">
+          <img src="assets/graphics/read.jpg" alt="朗讀" class="btn-img btn-read-img" id="readBtnImg">
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- 底部控制列 -->
+  <footer class="controls-bar d-flex justify-content-between align-items-center">
+    <!-- 播放狀態指標 -->
+    <div class="music-indicator">
+      <span class="music-pulse" id="musicPulse"></span>
+      <span id="musicTrackName">配樂：music0.mp3</span>
+    </div>
+
+    <!-- 頁碼切換按鈕 -->
+    <div class="d-flex align-items-center gap-3">
+      <button class="icon-btn" onclick="prevPage()" id="prevBtn" title="上一頁">
+        <img src="assets/graphics/left.jpg" alt="上一頁" class="btn-img">
+      </button>
+      
+      <button class="icon-btn" onclick="nextPage()" id="nextBtn" title="下一頁">
+        <img src="assets/graphics/right.jpg" alt="下一頁" class="btn-img">
+      </button>
+    </div>
+
+    <!-- 音量微調 -->
+    <div class="d-flex align-items-center gap-2">
+      <i class="fa-solid fa-volume-high text-warning style-sm"></i>
+      <input type="range" class="form-range volume-slider" id="volumeSlider" min="0" max="1" step="0.05" value="0.8" onchange="adjustVolume(this.value)">
+    </div>
+  </footer>
+
+  <!-- 隱藏音訊播放器 -->
+  <audio id="bgMusicPlayer" loop></audio>
+  <audio id="themeSongPlayer" src="assets/music/伴奏.mp3.mp3" loop></audio>
+
+  <script>
+    // 繪本 20 頁完整資料對應
+    const storyData = [
+      { id: 0, img: 'assets/graphics/0.jpg', music: 'assets/music/music0.mp3', text: '在很久很久以前，山林深處有一個充滿奇幻色彩的泰雅部落……' },
+      { id: 1, img: 'assets/graphics/1.jpg', music: 'assets/music/music1.mp3', text: '清晨的第一道曙光照亮山谷，勇士踏上熟悉的獵徑，開啟新的一天。' },
+      { id: 2, img: 'assets/graphics/2.jpg', music: 'assets/music/music2.mp3', text: '當夜晚降臨，大樹下傳來悠揚的笛聲，那是老長老在為孩子們講述部落的傳說。' },
+      { id: 3, img: 'assets/graphics/3.jpg', music: 'assets/music/music3.mp3', text: '傳說在森林的深處，祖靈的雕像默默守護著這片大地與萬物。' },
+      { id: 4, img: 'assets/graphics/4.jpg', music: 'assets/music/music4.mp3', text: '突然間，樹洞泛起奇異的光芒！一群活潑的祖靈小精靈從洞裡跳了出來！' },
+      { id: 5, img: 'assets/graphics/5.jpg', music: 'assets/music/music5.mp3', text: '小精靈們引領著孩子們踏入竹林，腳步聲「咚咚咚」地敲響了森林的脈搏。' },
+      { id: 6, img: 'assets/graphics/6.jpg', music: 'assets/music/music6.mp3', text: '在蟲鳴圍繞的夜晚，小精靈帶來了山林智慧，告訴孩子們如何尊重自然。' },
+      { id: 7, img: 'assets/graphics/7.jpg', music: 'assets/music/music7.mp3', text: '「囉～囉～囉！」大家開心地歡唱，慶祝著人與森林和諧相處的喜悅。' },
+      { id: 8, img: 'assets/graphics/8.jpg', music: 'assets/music/music8.mp3', text: '拍拍手、拍拍手！豐收的喜悅伴隨美味食物，分享給部落的每一個人。' },
+      { id: 9, img: 'assets/graphics/9.jpg', music: 'assets/music/music9.mp3', text: '老長老的琴聲輕揚，將祖先的智慧與對大自然的愛，一代一代傳承下去。' },
+      { id: 10, img: 'assets/graphics/10.jpg', music: 'assets/music/music10.mp3', text: '微風吹過，森林裡的鳥兒一同齊唱，回應著孩子們純真無邪的笑聲。' },
+      { id: 11, img: 'assets/graphics/11.jpg', music: 'assets/music/music11.mp3', text: '一步一步，腳步堅定。經過歷練的孩子塗上彩繪，成為保護部落的勇士。' },
+      { id: 12, img: 'assets/graphics/12.jpg', music: 'assets/music/music12.mp3', text: '經過了一整天的勞動，勇士仰望繁星點點的夜空，心裡充滿感恩。' },
+      { id: 13, img: 'assets/graphics/13.jpg', music: 'assets/music/music13.mp3', text: '清澈的溪水旁響起悠揚笛聲，大家高舉竹杯，共飲象徵團結的甘甜泉水。' },
+      { id: 14, img: 'assets/graphics/14.jpg', music: 'assets/music/music14.mp3', text: '鋼琴聲如跳躍的足跡，孩子們在森林寶庫裡發現了許多珍貴的植物與果實。' },
+      { id: 15, img: 'assets/graphics/15.jpg', music: 'assets/music/music15.mp3', text: '敲響響板，山羊在樹影間悠閒漫步，展現出人與動物的和諧共生。' },
+      { id: 16, img: 'assets/graphics/16.jpg', music: 'assets/music/music16.mp3', text: '「啵！啵！」靈感點亮了思緒，老長老幽默的指點讓孩子恍然大悟。' },
+      { id: 17, img: 'assets/graphics/17.jpg', music: 'assets/music/music17.mp3', text: '營火轟隆隆地燃燒，鼓聲震天，這是專屬於部落最熱烈的感恩慶典！' },
+      { id: 18, img: 'assets/graphics/18.jpg', music: 'assets/music/music18.mp3', text: '老長老撫摸著孩子的頭，祝福他帶著智慧與勇氣繼續成長。' },
+      { id: 19, img: 'assets/graphics/19.jpg', music: 'assets/music/music19.mp3', text: '祖靈精靈展開翅膀飛向天際，這座奇妙的部落將永遠獲得祝福與安康。' }
+    ];
+
+    let currentPage = 0;
+    let globalVolume = 0.8;
+    let isThemePlaying = false;
+
+    const bgMusicPlayer = document.getElementById('bgMusicPlayer');
+    const themeSongPlayer = document.getElementById('themeSongPlayer');
+    const musicPulse = document.getElementById('musicPulse');
+    const musicTrackName = document.getElementById('musicTrackName');
+
+    // 頁面初始化
+    window.addEventListener('DOMContentLoaded', () => {
+      updatePageContent();
+      
+      // 點擊頁面任意處啟動音訊（應對瀏覽器自動播放限制）
+      document.body.addEventListener('click', () => {
+        if (bgMusicPlayer.paused && !isThemePlaying) {
+          playMusic();
+        }
+      }, { once: true });
+    });
+
+    // 更新頁面內容
+    function updatePageContent() {
+      const page = storyData[currentPage];
+
+      // 切換圖片淡入效果
+      const imgElem = document.getElementById('storyImage');
+      imgElem.style.opacity = '0';
+      setTimeout(() => {
+        imgElem.src = page.img;
+        imgElem.style.opacity = '1';
+      }, 200);
+
+      // 更新文字與頁碼
+      document.getElementById('storyText').innerText = page.text;
+      document.getElementById('pageBadge').innerText = `${currentPage} / ${storyData.length - 1}`;
+      musicTrackName.innerText = `配樂：music${currentPage}.mp3`;
+
+      // 播放背景音樂
+      if (!isThemePlaying) {
+        bgMusicPlayer.src = page.music;
+        playMusic();
+      }
+
+      // 控制按鈕狀態
+      document.getElementById('prevBtn').style.opacity = currentPage === 0 ? '0.3' : '1';
+      document.getElementById('nextBtn').style.opacity = currentPage === storyData.length - 1 ? '0.3' : '1';
+    }
+
+    // 音訊播放控制
+    function playMusic() {
+      bgMusicPlayer.volume = globalVolume;
+      bgMusicPlayer.play().then(() => {
+        musicPulse.classList.add('playing');
+      }).catch(err => {
+        console.log('音樂自動播放受限，等待使用者互動。');
+        musicPulse.classList.remove('playing');
+      });
+    }
+
+    // 上一頁 / 下一頁
+    function prevPage() {
+      if (currentPage > 0) {
+        currentPage--;
+        updatePageContent();
+      }
+    }
+
+    function nextPage() {
+      if (currentPage < storyData.length - 1) {
+        currentPage++;
+        updatePageContent();
+      }
+    }
+
+    // 鍵盤左右箭頭切換
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') prevPage();
+      if (e.key === 'ArrowRight') nextPage();
+    });
+
+    // 語音朗讀內文 (合成語音 API)
+    function playSpeech() {
+      window.speechSynthesis.cancel(); // 停止先前的朗讀
+      const text = storyData[currentPage].text;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'zh-TW';
+      utterance.rate = 0.95; // 稍慢的繪本說故事速度
+      
+      // 朗讀時降低背景音樂
+      bgMusicPlayer.volume = globalVolume * 0.3;
+      themeSongPlayer.volume = globalVolume * 0.3;
+
+      utterance.onend = () => {
+        bgMusicPlayer.volume = globalVolume;
+        themeSongPlayer.volume = globalVolume;
+      };
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // 切換背景主題曲
+    function toggleThemeSong() {
+      const btn = document.getElementById('themeSongBtn');
+      if (isThemePlaying) {
+        themeSongPlayer.pause();
+        isThemePlaying = false;
+        btn.classList.remove('btn-warning');
+        btn.classList.add('btn-outline-warning');
+        musicTrackName.innerText = `配樂：music${currentPage}.mp3`;
+        playMusic();
+      } else {
+        bgMusicPlayer.pause();
+        themeSongPlayer.volume = globalVolume;
+        themeSongPlayer.play();
+        isThemePlaying = true;
+        btn.classList.remove('btn-outline-warning');
+        btn.classList.add('btn-warning');
+        musicPulse.classList.add('playing');
+        musicTrackName.innerText = `主題曲：伴奏.mp3.mp3`;
+      }
+    }
+
+    // 控制音量
+    function adjustVolume(val) {
+      globalVolume = parseFloat(val);
+      bgMusicPlayer.volume = globalVolume;
+      themeSongPlayer.volume = globalVolume;
+    }
+  </script>
+</body>
+</html>
