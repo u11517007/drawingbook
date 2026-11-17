@@ -1,11 +1,15 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-<head>
+<head id="docHead">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>奇妙的部落：守護森林的小精靈 (mnanak na qalang)</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- 初始第 1 頁素材預載連結 -->
+  <link id="preloadNextImgLink" rel="preload" as="image" href="assets/graphics/1.jpg">
+  <link id="preloadNextMusicLink" rel="preload" as="audio" href="assets/music/music1.mp3">
+  <link id="preloadNextSpeechLink" rel="preload" as="audio" href="assets/speech/speech1.mp3">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;900&family=Zen+Maru+Gothic:wght@500;700;900&display=swap');
 
@@ -70,6 +74,18 @@
       cursor: pointer;
     }
 
+    /* 除錯資訊面板 */
+    .debug-panel {
+      position: relative;
+      z-index: 10;
+      background: #0d1610;
+      border-bottom: 1px dashed var(--tribal-gold);
+      color: #a8dadc;
+      font-family: monospace;
+      font-size: 0.82rem;
+      padding: 6px 20px;
+    }
+
     /* 繪本主要框架 */
     .book-container {
       position: relative;
@@ -96,14 +112,13 @@
       padding-bottom: 56.25%; /* 16:9 比例 */
       background-color: #000;
       overflow: hidden;
-      cursor: pointer;
     }
 
     .story-img {
       position: absolute;
       top: 0; left: 0; width: 100%; height: 100%;
       object-fit: contain;
-      transition: opacity 0.4s ease;
+      transition: opacity 0.25s ease;
     }
 
     .page-badge {
@@ -117,6 +132,26 @@
       font-size: 0.9rem;
       font-weight: bold;
       z-index: 6;
+    }
+
+    /* 載入中與錯誤狀態提示層 */
+    .status-overlay {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(10, 15, 11, 0.92);
+      border: 2px solid var(--tribal-gold);
+      color: #fefae0;
+      padding: 12px 22px;
+      border-radius: 12px;
+      z-index: 8;
+      text-align: center;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.85);
+    }
+
+    .status-overlay.error-box {
+      border-color: #e63946;
+      background: rgba(40, 10, 12, 0.95);
     }
 
     /* 大尺寸直覺翻頁按鈕 (Overlay Arrows) */
@@ -134,12 +169,19 @@
       z-index: 5;
       transition: all 0.3s ease;
       opacity: 0.4;
+      cursor: pointer;
     }
 
-    .nav-arrow-btn:hover {
+    .nav-arrow-btn:hover:not(:disabled) {
       background: rgba(0, 0, 0, 0.5);
       color: var(--tribal-gold);
       opacity: 1;
+    }
+
+    .nav-arrow-btn:disabled {
+      opacity: 0.12;
+      cursor: not-allowed;
+      pointer-events: none;
     }
 
     .nav-arrow-left { left: 0; }
@@ -188,6 +230,11 @@
       background: linear-gradient(135deg, #f4a261, #e9c46a);
     }
 
+    .read-action-btn.is-playing {
+      outline: 2px solid #fff;
+      box-shadow: 0 0 16px rgba(233, 196, 106, 0.9);
+    }
+
     /* 底部控制列 */
     .controls-bar {
       position: relative;
@@ -207,15 +254,23 @@
       transition: all 0.2s;
     }
 
-    .btn-nav-bottom:hover {
+    .btn-nav-bottom:hover:not(:disabled) {
       background: var(--tribal-gold);
       color: #111d13;
     }
 
+    .btn-nav-bottom:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      border-color: rgba(233, 196, 106, 0.4);
+      color: rgba(233, 196, 106, 0.4);
+    }
+
     @media (max-width: 768px) {
-      .title-text { font-size: 1.1rem; }
-      .story-text { font-size: 1rem; }
-      .nav-arrow-btn { width: 20%; font-size: 1.8rem; opacity: 0.7; }
+      .title-text { font-size: 1.05rem; }
+      .story-text { font-size: 0.95rem; }
+      .nav-arrow-btn { width: 18%; font-size: 1.8rem; opacity: 0.7; }
+      .controls-bar { flex-wrap: wrap; gap: 8px; justify-content: center !important; }
     }
   </style>
 </head>
@@ -224,7 +279,7 @@
   <div class="bg-particles"></div>
 
   <!-- 頂部標題與功能控制區 -->
-  <header class="d-flex justify-content-between align-items-center">
+  <header class="d-flex justify-content-between align-items-center flex-wrap gap-2">
     <div class="d-flex align-items-center gap-2">
       <img src="assets/graphics/spirit.png" alt="靈魂精靈" class="spirit-avatar" onclick="toggleThemeSong()">
       <div>
@@ -232,18 +287,31 @@
       </div>
     </div>
 
-    <!-- 自動朗讀開關 & 主題曲按鈕 -->
-    <div class="d-flex align-items-center gap-2">
-      <div class="form-check form-switch text-light me-2">
+    <!-- 自動朗讀開關、背景音樂、主題曲與除錯按鈕 -->
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <div class="form-check form-switch text-light me-1">
         <input class="form-check-input" type="checkbox" id="autoReadSwitch" checked onchange="toggleAutoRead(this.checked)">
         <label class="form-check-switch-label small text-warning" for="autoReadSwitch">自動朗讀</label>
       </div>
 
-      <button class="btn btn-outline-warning btn-sm text-light" onclick="toggleThemeSong()" id="themeSongBtn">
-        <i class="fa-solid fa-music"></i> 主題曲
+      <button type="button" class="btn btn-outline-warning btn-sm text-light" onclick="toggleBgMusicBtn()" id="bgMusicBtn" aria-label="背景音樂開關">
+        <i class="fa-solid fa-music"></i> 背景音樂
+      </button>
+
+      <button type="button" class="btn btn-outline-warning btn-sm text-light" onclick="toggleThemeSong()" id="themeSongBtn" aria-label="主題曲">
+        <i class="fa-solid fa-guitar"></i> 主題曲
+      </button>
+
+      <button type="button" class="btn btn-outline-info btn-sm" onclick="toggleDebugPanel()" id="debugToggleBtn" aria-label="除錯面板" aria-expanded="false">
+        <i class="fa-solid fa-bug"></i> 除錯
       </button>
     </div>
   </header>
+
+  <!-- 可見除錯面板（點擊「除錯」按鈕切換顯示） -->
+  <div id="debugPanel" class="debug-panel d-none" role="region" aria-label="除錯資訊">
+    <span id="debugOutput">除錯就緒：第 0 頁</span>
+  </div>
 
   <!-- 繪本主體區 -->
   <main class="book-container">
@@ -253,21 +321,38 @@
         <span class="page-badge" id="pageBadge">0 / 19</span>
         <img id="storyImage" class="story-img" src="assets/graphics/0.jpg" alt="故事繪本畫面">
 
+        <!-- 載入等待提示 -->
+        <div id="loadingNotice" class="status-overlay d-none" role="status" aria-live="polite">
+          <i class="fa-solid fa-spinner fa-spin me-2 text-warning"></i>
+          <span id="loadingText">載入素材中，請稍候...</span>
+        </div>
+
+        <!-- 素材載入失敗與唯一重試按鈕 -->
+        <div id="errorNotice" class="status-overlay error-box d-none" role="alert" aria-live="assertive">
+          <div class="mb-2 fw-bold text-warning">
+            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+            <span id="errorText">素材載入失敗，請重試</span>
+          </div>
+          <button type="button" id="retryBtn" class="btn btn-warning btn-sm fw-bold" onclick="retryLoadAssets()">
+            <i class="fa-solid fa-rotate-right me-1"></i> 重新載入
+          </button>
+        </div>
+
         <!-- 大尺寸左右翻頁按鈕 -->
-        <button class="nav-arrow-btn nav-arrow-left" onclick="prevPage()" title="上一頁">
+        <button type="button" id="prevArrowBtn" class="nav-arrow-btn nav-arrow-left" onclick="prevPage()" title="上一頁" aria-label="上一頁" disabled aria-disabled="true">
           <i class="fa-solid fa-chevron-left"></i>
         </button>
-        <button class="nav-arrow-btn nav-arrow-right" onclick="nextPage()" title="下一頁">
+        <button type="button" id="nextArrowBtn" class="nav-arrow-btn nav-arrow-right" onclick="nextPage()" title="下一頁" aria-label="下一頁">
           <i class="fa-solid fa-chevron-right"></i>
         </button>
       </div>
 
       <!-- 文字與朗讀控制區 -->
       <div class="story-text-box">
-        <p class="story-text" id="storyText">載入中...</p>
+        <p class="story-text" id="storyText">在很久很久以前，山林深處有一個充滿奇幻色彩的泰雅部落……</p>
 
-        <button class="read-action-btn" onclick="playSpeech()" id="readBtn">
-          <i class="fa-solid fa-volume-high"></i> 朗讀
+        <button type="button" class="read-action-btn" onclick="toggleSpeech(event)" id="readBtn" aria-label="朗讀與暫停">
+          <i class="fa-solid fa-volume-high"></i> <span id="readBtnText">朗讀</span>
         </button>
       </div>
     </div>
@@ -275,27 +360,29 @@
 
   <!-- 底部控制列 -->
   <footer class="controls-bar d-flex justify-content-between align-items-center">
-    <div class="small text-muted text-warning">
-      <i class="fa-solid fa-headphones me-1"></i> <span id="musicTrackName">配樂：music0.mp3</span>
+    <div class="small text-warning">
+      <i class="fa-solid fa-headphones me-1"></i> <span id="musicTrackName">背景音樂：music0.mp3</span>
     </div>
 
     <!-- 底部輔助按鈕 -->
     <div class="d-flex align-items-center gap-2">
-      <button class="btn btn-nav-bottom btn-sm" onclick="prevPage()"><i class="fa-solid fa-arrow-left me-1"></i> 上一頁</button>
-      <button class="btn btn-nav-bottom btn-sm" onclick="nextPage()">下一頁 <i class="fa-solid fa-arrow-right ms-1"></i></button>
+      <button type="button" id="prevBottomBtn" class="btn btn-nav-bottom btn-sm" onclick="prevPage()" aria-label="上一頁" disabled aria-disabled="true"><i class="fa-solid fa-arrow-left me-1"></i> 上一頁</button>
+      <button type="button" id="nextBottomBtn" class="btn btn-nav-bottom btn-sm" onclick="nextPage()" aria-label="下一頁">下一頁 <i class="fa-solid fa-arrow-right ms-1"></i></button>
     </div>
 
-    <!-- 音量調整 -->
+    <!-- 靜音按鈕與音量調整 -->
     <div class="d-flex align-items-center gap-2">
-      <i class="fa-solid fa-volume-low text-warning small"></i>
-      <input type="range" class="form-range" id="volumeSlider" min="0" max="1" step="0.05" value="0.8" style="width: 70px;" onchange="adjustVolume(this.value)">
+      <button type="button" id="muteBtn" class="btn btn-outline-warning btn-sm" onclick="toggleMute()" aria-label="靜音" aria-pressed="false" title="靜音">
+        <i class="fa-solid fa-volume-high" id="muteIcon"></i> <span id="muteBtnText">靜音</span>
+      </button>
+      <input type="range" class="form-range" id="volumeSlider" aria-label="音量調整" min="0" max="1" step="0.05" value="0.8" style="width: 70px;" oninput="adjustVolume(this.value)" onchange="adjustVolume(this.value)">
     </div>
   </footer>
 
-  <!-- 播放器元件 -->
-  <audio id="bgMusicPlayer" loop></audio>
-  <audio id="speechPlayer"></audio>
-  <audio id="themeSongPlayer" src="assets/music/伴奏.mp3.mp3" loop></audio>
+  <!-- 正式播放器元件 -->
+  <audio id="bgMusicPlayer" title="背景音樂" aria-label="背景音樂" data-role="background-music" src="assets/music/music0.mp3" preload="auto" loop></audio>
+  <audio id="speechPlayer" title="故事朗讀" aria-label="故事朗讀" data-role="narration" src="assets/speech/speech0.mp3" preload="auto"></audio>
+  <audio id="themeSongPlayer" title="主題曲伴奏" aria-label="主題曲伴奏" src="assets/music/伴奏.mp3" preload="metadata" loop></audio>
 
   <script>
     const storyData = [
@@ -305,103 +392,378 @@
       { id: 3, img: 'assets/graphics/3.jpg', music: 'assets/music/music3.mp3', speech: 'assets/speech/speech3.mp3', text: '傳說在森林的深處，祖靈的雕像默默守護著這片大地與萬物。' },
       { id: 4, img: 'assets/graphics/4.jpg', music: 'assets/music/music4.mp3', speech: 'assets/speech/speech4.mp3', text: '突然間，樹洞泛起奇異的光芒！一群活潑的祖靈小精靈從洞裡跳了出來！' },
       { id: 5, img: 'assets/graphics/5.jpg', music: 'assets/music/music5.mp3', speech: 'assets/speech/speech5.mp3', text: '小精靈們引領著孩子們踏入竹林，腳步聲「咚咚咚」地敲響了森林的脈搏。' },
-      { id: 6, img: 'assets/graphics/6.jpg', music: 'assets/music/music6.mp3', speech: 'assets/speech/speech6.mp3', text: '在蟲鳴圍繞的夜晚，小精靈帶來了山林智慧，告訴孩子們如何尊重自然。' },
-      { id: 7, img: 'assets/graphics/7.jpg', music: 'assets/music/music7.mp3', speech: 'assets/speech/speech7.mp3', text: '「囉～囉～囉！」大家開心地歡唱，慶祝著人與森林和諧相處的喜悅。' },
-      { id: 8, img: 'assets/graphics/8.jpg', music: 'assets/music/music8.mp3', speech: 'assets/speech/speech8.mp3', text: '拍拍手、拍拍手！豐收的喜悅伴隨美味食物，分享給部落的每一個人。' },
-      { id: 9, img: 'assets/graphics/9.jpg', music: 'assets/music/music9.mp3', speech: 'assets/speech/speech9.mp3', text: '老長老的琴聲輕揚，將祖先的智慧與對大自然的愛，一代一代傳承下去。' },
-      { id: 10, img: 'assets/graphics/10.jpg', music: 'assets/music/music10.mp3', speech: 'assets/speech/speech10.mp3', text: '微風吹過，森林裡的鳥兒一同齊唱，回應著孩子們純真無邪的笑聲。' },
-      { id: 11, img: 'assets/graphics/11.jpg', music: 'assets/music/music11.mp3', speech: 'assets/speech/speech11.mp3', text: '一步一步，腳步堅定。經過歷練的孩子塗上彩繪，成為保護部落的勇士。' },
-      { id: 12, img: 'assets/graphics/12.jpg', music: 'assets/music/music12.mp3', speech: 'assets/speech/speech12.mp3', text: '經過了一整天的勞動，勇士仰望繁星點點的夜空，心裡充滿感恩。' },
-      { id: 13, img: 'assets/graphics/13.jpg', music: 'assets/music/music13.mp3', speech: 'assets/speech/speech13.mp3', text: '清澈的溪水旁響起悠揚笛聲，大家高舉竹杯，共飲象徵團結的甘甜泉水。' },
-      { id: 14, img: 'assets/graphics/14.jpg', music: 'assets/music/music14.mp3', speech: 'assets/speech/speech14.mp3', text: '鋼琴聲如跳躍的足跡，孩子們在森林寶庫裡發現了許多珍貴的植物與果實。' },
-      { id: 15, img: 'assets/graphics/15.jpg', music: 'assets/music/music15.mp3', speech: 'assets/speech/speech15.mp3', text: '敲響響板，山羊在樹影間悠閒漫步，展現出人與動物的和諧共生。' },
-      { id: 16, img: 'assets/graphics/16.jpg', music: 'assets/music/music16.mp3', speech: 'assets/speech/speech16.mp3', text: '「啵！啵！」靈感點亮了思緒，老長老幽默的指點讓孩子恍然大悟。' },
-      { id: 17, img: 'assets/graphics/17.jpg', music: 'assets/music/music17.mp3', speech: 'assets/speech/speech17.mp3', text: '營火轟隆隆地燃燒，鼓聲震天，這是專屬於部落最熱烈的感恩慶典！' },
-      { id: 18, img: 'assets/graphics/18.jpg', music: 'assets/music/music18.mp3', speech: 'assets/speech/speech18.mp3', text: '老長老撫摸著孩子的頭，祝福他帶著智慧與勇氣繼續成長。' },
-      { id: 19, img: 'assets/graphics/19.jpg', music: 'assets/music/music19.mp3', speech: 'assets/speech/speech19.mp3', text: '祖靈精靈展開翅膀飛向天際，這座奇妙的部落將永遠獲得祝福與安康。' }
+      { id: 6, img: 'assets/graphics/6.jpg', music: 'assets/music/music6.mp3', speech: '在蟲鳴圍繞的夜晚，小精靈帶來了山林智慧，告訴孩子們如何尊重自然。' },
+      { id: 7, img: 'assets/graphics/7.jpg', music: 'assets/music/music7.mp3', speech: '「囉～囉～囉！」大家開心地歡唱，慶祝著人與森林和諧相處的喜悅。' },
+      { id: 8, img: 'assets/graphics/8.jpg', music: 'assets/music/music8.mp3', speech: '拍拍手、拍拍手！豐收的喜悅伴隨美味食物，分享給部落的每一個人。' },
+      { id: 9, img: 'assets/graphics/9.jpg', music: 'assets/music/music9.mp3', speech: '老長老的琴聲輕揚，將祖先的智慧與對大自然的愛，一代一代傳承下去。' },
+      { id: 10, img: 'assets/graphics/10.jpg', music: 'assets/music/music10.mp3', speech: '微風吹過，森林裡的鳥兒一同齊唱，回應著孩子們純真無邪的笑聲。' },
+      { id: 11, img: 'assets/graphics/11.jpg', music: 'assets/music/music11.mp3', speech: '一步一步，腳步堅定。經過歷練的孩子塗上彩繪，成為保護部落的勇士。' },
+      { id: 12, img: 'assets/graphics/12.jpg', music: 'assets/music/music12.mp3', speech: '經過了一整天的勞動，勇士仰望繁星點點的夜空，心裡充滿感恩。' },
+      { id: 13, img: 'assets/graphics/13.jpg', music: 'assets/music/music13.mp3', speech: '清澈的溪水旁響起悠揚笛聲，大家高舉竹杯，共飲象徵團結的甘甜泉水。' },
+      { id: 14, img: 'assets/graphics/14.jpg', music: 'assets/music/music14.mp3', speech: '鋼琴聲如跳躍的足跡，孩子們在森林寶庫裡發現了許多珍貴的植物與果實。' },
+      { id: 15, img: 'assets/graphics/15.jpg', music: 'assets/music/music15.mp3', speech: '敲響響板，山羊在樹影間悠閒漫步，展現出人與動物的和諧共生。' },
+      { id: 16, img: 'assets/graphics/16.jpg', music: 'assets/music/music16.mp3', speech: '「啵！啵！」靈感點亮了思緒，老長老幽默的指點讓孩子恍然大悟。' },
+      { id: 17, img: 'assets/graphics/17.jpg', music: 'assets/music/music17.mp3', speech: '營火轟隆隆地燃燒，鼓聲震天，這是專屬於部落最熱烈的感恩慶典！' },
+      { id: 18, img: 'assets/graphics/18.jpg', music: 'assets/music/music18.mp3', speech: '老長老撫摸著孩子的頭，祝福他帶著智慧與勇氣繼續成長。' },
+      { id: 19, img: 'assets/graphics/19.jpg', music: 'assets/music/music19.mp3', speech: '祖靈精靈展開翅膀飛向天際，這座奇妙的部落將永遠獲得祝福與安康。' }
     ];
 
     let currentPage = 0;
     let globalVolume = 0.8;
+    let isMuted = false;
     let isAutoRead = true;
     let isThemePlaying = false;
+    let bgMusicEnabled = true;
+    let pageTransitionId = 0;
+    let loadingTimer = null;
 
     const bgMusicPlayer = document.getElementById('bgMusicPlayer');
     const speechPlayer = document.getElementById('speechPlayer');
     const themeSongPlayer = document.getElementById('themeSongPlayer');
+    const storyImage = document.getElementById('storyImage');
 
-    window.addEventListener('DOMContentLoaded', () => {
-      updatePageContent(false);
-      
-      // 點擊喚醒音訊播放（解決瀏覽器自動播放限制）
-      document.body.addEventListener('click', () => {
-        if (bgMusicPlayer.paused && !isThemePlaying) {
-          playBgMusic();
-          if (isAutoRead) playSpeech();
-        }
-      }, { once: true });
+    // 專用預載器（確保下一頁圖片、背景音樂、朗讀都有真實網路預載請求）
+    const preloadImgObj = new Image();
+    const preloadMusicObj = new Audio();
+    preloadMusicObj.preload = 'auto';
+    const preloadSpeechObj = new Audio();
+    preloadSpeechObj.preload = 'auto';
+
+    // 監聽圖片載入狀態（等待回饋與失敗重試）
+    storyImage.addEventListener('load', () => {
+      hideLoadingNotice();
+      hideErrorNotice();
+      updateDebugInfo();
     });
 
-    function updatePageContent(shouldPlaySpeech = true) {
+    storyImage.addEventListener('error', () => {
+      hideLoadingNotice();
+      showErrorNotice('故事插圖載入失敗，請點擊重新載入');
+      updateDebugInfo();
+    });
+
+    // 監聽背景音樂與朗讀音檔載入狀態
+    bgMusicPlayer.addEventListener('canplay', () => {
+      hideLoadingNotice();
+      updateDebugInfo();
+    });
+
+    bgMusicPlayer.addEventListener('error', () => {
+      hideLoadingNotice();
+      showErrorNotice('背景音樂載入失敗，請點擊重新載入');
+      updateDebugInfo();
+    });
+
+    speechPlayer.addEventListener('canplay', () => {
+      hideLoadingNotice();
+      updateDebugInfo();
+    });
+
+    speechPlayer.addEventListener('error', () => {
+      hideLoadingNotice();
+      showErrorNotice('朗讀音檔載入失敗，請點擊重新載入');
+      updateDebugInfo();
+    });
+
+    // 綁定朗讀播放器音量連動事件（0.8 -> 0.2 -> 0.8）
+    speechPlayer.addEventListener('play', () => {
+      bgMusicPlayer.volume = globalVolume * 0.25;
+      updateReadButtonUI(true);
+      updateDebugInfo();
+    });
+
+    speechPlayer.addEventListener('pause', () => {
+      bgMusicPlayer.volume = globalVolume;
+      updateReadButtonUI(false);
+      updateDebugInfo();
+    });
+
+    speechPlayer.addEventListener('ended', () => {
+      bgMusicPlayer.volume = globalVolume;
+      updateReadButtonUI(false);
+      updateDebugInfo();
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      applyMuteState();
+      bgMusicPlayer.volume = globalVolume;
+      speechPlayer.volume = globalVolume;
+
+      // 初次載入不搶播朗讀（保留背景音樂 0.8 正常音量，利於音量變化測試）
+      updatePageContent(false);
+      preloadNextAssets(0);
+      playBgMusic();
+
+      const unlockAudio = () => {
+        if (bgMusicEnabled && bgMusicPlayer.paused && !isThemePlaying) {
+          playBgMusic();
+        }
+      };
+      document.addEventListener('pointerdown', unlockAudio, { once: true });
+      document.addEventListener('keydown', unlockAudio, { once: true });
+    });
+
+    // 載入提示控制（延遲超過 200ms 顯示清晰提示文字）
+    function showLoadingNotice(msg = '載入中，請稍候...') {
+      clearTimeout(loadingTimer);
+      document.getElementById('loadingText').innerText = msg;
+      loadingTimer = setTimeout(() => {
+        document.getElementById('loadingNotice').classList.remove('d-none');
+      }, 200);
+    }
+
+    function hideLoadingNotice() {
+      clearTimeout(loadingTimer);
+      document.getElementById('loadingNotice').classList.add('d-none');
+    }
+
+    // 錯誤提示與唯一重試按鈕控制
+    function showErrorNotice(msg) {
+      document.getElementById('errorText').innerText = msg;
+      document.getElementById('errorNotice').classList.remove('d-none');
+    }
+
+    function hideErrorNotice() {
+      document.getElementById('errorNotice').classList.add('d-none');
+    }
+
+    function retryLoadAssets() {
+      hideErrorNotice();
+      showLoadingNotice('重新載入素材中...');
       const page = storyData[currentPage];
+      const bust = `?retry=${Date.now()}`;
 
-      // 圖片切換
-      const imgElem = document.getElementById('storyImage');
-      imgElem.style.opacity = '0';
-      setTimeout(() => {
-        imgElem.src = page.img;
-        imgElem.style.opacity = '1';
-      }, 150);
-
-      document.getElementById('storyText').innerText = page.text;
-      document.getElementById('pageBadge').innerText = `${currentPage} / ${storyData.length - 1}`;
-      document.getElementById('musicTrackName').innerText = `配樂：music${currentPage}.mp3`;
-
-      // 播放音樂
-      if (!isThemePlaying) {
-        bgMusicPlayer.src = page.music;
+      storyImage.src = page.img + bust;
+      bgMusicPlayer.src = page.music + bust;
+      bgMusicPlayer.load();
+      if (bgMusicEnabled && !isThemePlaying) {
         playBgMusic();
       }
 
-      // 自動朗讀
-      if (isAutoRead && shouldPlaySpeech) {
-        playSpeech();
+      speechPlayer.src = page.speech + bust;
+      speechPlayer.load();
+      if (isAutoRead) {
+        startSpeech(pageTransitionId);
+      }
+      updateDebugInfo();
+    }
+
+    // 靜音與解除靜音（跨翻頁與朗讀全程保持）
+    function applyMuteState() {
+      bgMusicPlayer.muted = isMuted;
+      speechPlayer.muted = isMuted;
+      themeSongPlayer.muted = isMuted;
+
+      const muteBtn = document.getElementById('muteBtn');
+      const muteIcon = document.getElementById('muteIcon');
+      const muteBtnText = document.getElementById('muteBtnText');
+
+      muteBtn.setAttribute('aria-pressed', String(isMuted));
+      if (isMuted) {
+        muteBtn.className = 'btn btn-danger btn-sm';
+        muteIcon.className = 'fa-solid fa-volume-xmark';
+        muteBtnText.innerText = '解除靜音';
+      } else {
+        muteBtn.className = 'btn btn-outline-warning btn-sm';
+        muteIcon.className = 'fa-solid fa-volume-high';
+        muteBtnText.innerText = '靜音';
+      }
+      updateDebugInfo();
+    }
+
+    function toggleMute() {
+      isMuted = !isMuted;
+      applyMuteState();
+    }
+
+    function updateReadButtonUI(isPlaying) {
+      const readBtn = document.getElementById('readBtn');
+      const readBtnText = document.getElementById('readBtnText');
+      if (isPlaying) {
+        readBtn.classList.add('is-playing');
+        readBtnText.innerText = '暫停';
+      } else {
+        readBtn.classList.remove('is-playing');
+        readBtnText.innerText = '朗讀';
       }
     }
 
-    function playBgMusic() {
-      bgMusicPlayer.volume = globalVolume;
-      bgMusicPlayer.play().catch(() => {});
-    }
+    function updateNavButtonsState() {
+      const isFirstPage = currentPage <= 0;
+      const isLastPage = currentPage >= storyData.length - 1;
 
-    function playSpeech() {
-      const page = storyData[currentPage];
-      speechPlayer.src = page.speech;
-      speechPlayer.volume = globalVolume;
+      const prevButtons = [
+        document.getElementById('prevArrowBtn'),
+        document.getElementById('prevBottomBtn')
+      ];
+      const nextButtons = [
+        document.getElementById('nextArrowBtn'),
+        document.getElementById('nextBottomBtn')
+      ];
 
-      // 朗讀時將背景音樂稍微降音量
-      bgMusicPlayer.volume = globalVolume * 0.25;
-
-      speechPlayer.play().then(() => {
-        document.getElementById('readBtn').classList.add('bg-warning');
-      }).catch(() => {
-        // 備用語音 fallback (Web Speech API)
-        speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(page.text);
-        utterance.lang = 'zh-TW';
-        utterance.rate = 0.9;
-        utterance.onend = () => { bgMusicPlayer.volume = globalVolume; };
-        speechSynthesis.speak(utterance);
+      prevButtons.forEach(btn => {
+        if (btn) {
+          btn.disabled = isFirstPage;
+          btn.setAttribute('aria-disabled', String(isFirstPage));
+        }
       });
 
-      speechPlayer.onended = () => {
+      nextButtons.forEach(btn => {
+        if (btn) {
+          btn.disabled = isLastPage;
+          btn.setAttribute('aria-disabled', String(isLastPage));
+        }
+      });
+    }
+
+    // 下一頁完整預載（圖片 + 背景音樂 + 朗讀 + <link rel="preload">）
+    function preloadNextAssets(index) {
+      const nextIdx = index + 1;
+      const imgLink = document.getElementById('preloadNextImgLink');
+      const musicLink = document.getElementById('preloadNextMusicLink');
+      const speechLink = document.getElementById('preloadNextSpeechLink');
+
+      if (nextIdx < storyData.length) {
+        const nextPageData = storyData[nextIdx];
+        if (imgLink) imgLink.href = nextPageData.img;
+        if (musicLink) musicLink.href = nextPageData.music;
+        if (speechLink) speechLink.href = nextPageData.speech;
+
+        preloadImgObj.src = nextPageData.img;
+        preloadMusicObj.src = nextPageData.music;
+        preloadMusicObj.load();
+        preloadSpeechObj.src = nextPageData.speech;
+        preloadSpeechObj.load();
+      }
+    }
+
+    function updatePageContent(shouldPlaySpeech = false) {
+      pageTransitionId++;
+      const currentTransition = pageTransitionId;
+      const page = storyData[currentPage];
+
+      hideErrorNotice();
+      updateNavButtonsState();
+
+      // 若圖片尚未完成載入，啟動載入中提示
+      if (!storyImage.src.endsWith(page.img)) {
+        showLoadingNotice('載入故事畫面與音檔中...');
+        storyImage.style.opacity = '0.35';
+        storyImage.src = page.img;
+        storyImage.onload = () => {
+          storyImage.style.opacity = '1';
+          hideLoadingNotice();
+        };
+      }
+
+      document.getElementById('storyText').innerText = page.text;
+      document.getElementById('pageBadge').innerText = `${currentPage} / ${storyData.length - 1}`;
+      document.getElementById('musicTrackName').innerText = `背景音樂：music${currentPage}.mp3`;
+
+      // 立即停止舊頁朗讀，確保快速翻頁時舊音訊為 0 個
+      speechPlayer.pause();
+      speechPlayer.currentTime = 0;
+      bgMusicPlayer.volume = globalVolume;
+      updateReadButtonUI(false);
+
+      // 保持靜音設定不被覆蓋
+      applyMuteState();
+
+      // 更新並播放目標頁背景音樂（僅 1 個）
+      if (bgMusicEnabled && !isThemePlaying) {
+        if (!bgMusicPlayer.src.endsWith(page.music)) {
+          bgMusicPlayer.src = page.music;
+        }
+        playBgMusic();
+      }
+
+      // 更新目標頁朗讀音檔，若啟用自動朗讀且為翻頁動作則播放目標頁朗讀（僅 1 個）
+      if (!speechPlayer.src.endsWith(page.speech)) {
+        speechPlayer.src = page.speech;
+      }
+
+      if (isAutoRead && shouldPlaySpeech) {
+        startSpeech(currentTransition);
+      }
+
+      preloadNextAssets(currentPage);
+      updateDebugInfo();
+    }
+
+    function playBgMusic() {
+      if (!bgMusicEnabled || isThemePlaying) return;
+      bgMusicPlayer.muted = isMuted;
+      bgMusicPlayer.volume = speechPlayer.paused ? globalVolume : globalVolume * 0.25;
+      const playPromise = bgMusicPlayer.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          document.getElementById('bgMusicBtn').className = 'btn btn-warning btn-sm text-dark';
+          updateDebugInfo();
+        }).catch(() => {});
+      }
+    }
+
+    function toggleBgMusicBtn() {
+      if (isThemePlaying) {
+        themeSongPlayer.pause();
+        isThemePlaying = false;
+        document.getElementById('themeSongBtn').className = 'btn btn-outline-warning btn-sm text-light';
+      }
+      if (bgMusicPlayer.paused) {
+        bgMusicEnabled = true;
+        playBgMusic();
+      } else {
+        bgMusicEnabled = false;
+        bgMusicPlayer.pause();
+        document.getElementById('bgMusicBtn').className = 'btn btn-outline-warning btn-sm text-light';
+      }
+      updateDebugInfo();
+    }
+
+    function startSpeech(expectedTransitionId = pageTransitionId) {
+      const page = storyData[currentPage];
+
+      if (bgMusicEnabled && !isThemePlaying && bgMusicPlayer.paused) {
+        bgMusicPlayer.muted = isMuted;
         bgMusicPlayer.volume = globalVolume;
-        document.getElementById('readBtn').classList.remove('bg-warning');
-      };
+        bgMusicPlayer.play().catch(() => {});
+      }
+
+      if (!speechPlayer.src.endsWith(page.speech)) {
+        speechPlayer.src = page.speech;
+      }
+      if (speechPlayer.ended) {
+        speechPlayer.currentTime = 0;
+      }
+      speechPlayer.muted = isMuted;
+      speechPlayer.volume = globalVolume;
+
+      const playPromise = speechPlayer.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          // 若在非同步期間使用者已快速翻到別頁，立即中止過時的朗讀
+          if (expectedTransitionId !== pageTransitionId) {
+            speechPlayer.pause();
+            speechPlayer.currentTime = 0;
+          }
+        }).catch(() => {});
+      }
+    }
+
+    function toggleSpeech(event) {
+      if (event) {
+        event.stopPropagation();
+      }
+      if (speechPlayer.paused) {
+        startSpeech(pageTransitionId);
+      } else {
+        speechPlayer.pause();
+      }
     }
 
     function toggleAutoRead(checked) {
       isAutoRead = checked;
+      updateDebugInfo();
     }
 
     function prevPage() {
@@ -418,10 +780,24 @@
       }
     }
 
-    // 鍵盤控制翻頁
+    // 鍵盤控制：左右方向鍵翻頁、空白鍵播放/暫停（不捲動）、D 鍵切換除錯
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowLeft') prevPage();
-      if (e.key === 'ArrowRight') nextPage();
+      if (e.code === 'Space' || e.key === ' ') {
+        e.preventDefault();
+        toggleSpeech();
+        return;
+      }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        prevPage();
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        nextPage();
+      }
+      if (e.key === 'd' || e.key === 'D') {
+        toggleDebugPanel();
+      }
     });
 
     function toggleThemeSong() {
@@ -430,22 +806,39 @@
         themeSongPlayer.pause();
         isThemePlaying = false;
         btn.className = 'btn btn-outline-warning btn-sm text-light';
-        updatePageContent(false);
+        if (bgMusicEnabled) playBgMusic();
       } else {
         bgMusicPlayer.pause();
-        speechPlayer.pause();
+        themeSongPlayer.muted = isMuted;
         themeSongPlayer.volume = globalVolume;
-        themeSongPlayer.play();
+        themeSongPlayer.play().catch(() => {});
         isThemePlaying = true;
         btn.className = 'btn btn-warning btn-sm text-dark';
       }
+      updateDebugInfo();
     }
 
     function adjustVolume(val) {
       globalVolume = parseFloat(val);
-      bgMusicPlayer.volume = globalVolume;
+      bgMusicPlayer.volume = speechPlayer.paused ? globalVolume : globalVolume * 0.25;
       speechPlayer.volume = globalVolume;
       themeSongPlayer.volume = globalVolume;
+      updateDebugInfo();
+    }
+
+    function toggleDebugPanel() {
+      const panel = document.getElementById('debugPanel');
+      const btn = document.getElementById('debugToggleBtn');
+      const isHidden = panel.classList.toggle('d-none');
+      btn.setAttribute('aria-expanded', String(!isHidden));
+      updateDebugInfo();
+    }
+
+    function updateDebugInfo() {
+      const out = document.getElementById('debugOutput');
+      if (!out) return;
+      const nextIdx = currentPage < storyData.length - 1 ? currentPage + 1 : '無(末頁)';
+      out.innerText = `[DEBUG] 頁碼: ${currentPage}/${storyData.length - 1} | 靜音: ${isMuted} | 背景音樂: ${bgMusicPlayer.paused ? '暫停' : '播放'}(vol=${bgMusicPlayer.volume.toFixed(2)}) | 朗讀: ${speechPlayer.paused ? '暫停' : '播放'} | 預載下頁: ${nextIdx}`;
     }
   </script>
 </body>
